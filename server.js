@@ -1,5 +1,6 @@
 const mysql = require('mysql2');
 const inquirer = require('inquirer');
+const cTable = require('console.table');
 
 const db = mysql.createConnection(
     {
@@ -11,23 +12,10 @@ const db = mysql.createConnection(
     console.log(`Connected to the employee_db database.`)
 );
 
-// GIVEN a command - line application that accepts user input
-// WHEN I start the application
-// THEN I am presented with the following options: view all departments, view all roles, view all employees, add a department, add a role, add an employee, and update an employee role
-// WHEN I choose to view all departments
-// THEN I am presented with a formatted table showing department names and department ids
-// WHEN I choose to view all roles
-// THEN I am presented with the job title, role id, the department that role belongs to, and the salary for that role
-// WHEN I choose to view all employees
-// THEN I am presented with a formatted table showing employee data, including employee ids, first names, last names, job titles, departments, salaries, and managers that the employees report to
-// WHEN I choose to add a department
-// THEN I am prompted to enter the name of the department and that department is added to the database
-// WHEN I choose to add a role
-// THEN I am prompted to enter the name, salary, and department for the role and that role is added to the database
-// WHEN I choose to add an employee
-// THEN I am prompted to enter the employee’s first name, last name, role, and manager, and that employee is added to the database
-// WHEN I choose to update an employee role
-// THEN I am prompted to select an employee to update and their new role and this information is updated in the database 
+db.connect(err => {
+    if (err) throw err;
+    promptChoices();
+}); 
 
 //Basic function called upon connection, and recalled when a choice is completed.
 const promptChoices = () => {
@@ -49,46 +37,43 @@ const promptChoices = () => {
     ])
     //Based on choice, call the query
         .then((answer) => {
-            const {choice} = answer;
-
-            if (choice === "View all Departments") {
+            if (answer.choices === "View all Departments") {
                 viewAllDepartments();
             }
-            if (choice === "View all Roles") {
+            if (answer.choices === "View all Roles") {
                 viewAllRoles();
             }
-            if (choice === "View all Employees") {
+            if (answer.choices === "View all Employees") {
                 viewAllEmployees();
             }
-            if (choice === "Add a Department") {
+            if (answer.choices === "Add a Department") {
                 addDepartment();
             }
-            if (choice === "Add a Role") {
+            if (answer.choices === "Add a Role") {
                 addRole();
             }
-            if (choice === "Add an Employee") {
+            if (answer.choices === "Add an Employee") {
                 addEmployee();
             }
-            if (choice === "Update employee role") {
+            if (answer.choices === "Update employee role") {
                 updateRole();
             }
         })
 };
 
 viewAllDepartments = () => {
-    const sql = `SELECT department.id AS id, department.name AS department FROM department`;
-    db.promise().query(sql, (err, rows) => {
+    db.query(`SELECT * FROM department`, (err, result) => {
         if (err) throw err;
-        console.table(rows);
+        console.table(result);
         promptChoices();
     })
 };
 
 viewAllRoles = () => {
     const sql = `SELECT role.id, role.title, department.name AS department FROM role INNER JOIN department on role.department_id = department.id`;
-    db.promise().query(sql, (err, rows) => {
+    db.query(sql, (err, result) => {
         if (err) throw err;
-        console.table(rows);
+        console.table(result);
         promptChoices();
     })
 };
@@ -97,9 +82,9 @@ viewAllEmployees = () => {
     const sql = `SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS department,
                 CONCAT (manager.first_name, " ", manager.last_name) AS manager FROM employee
                 LEFT JOIN role on employee.role_id = role.id LEFT JOIN department ON role.department_id = department.id LEFT JOIN employee manager ON employee.manager_id = manager.id`;
-    db.promise().query(sql, (err, rows) => {
+    db.query(sql, (err, result) => {
         if (err) throw err;
-        console.table(rows);
+        console.table(result);
         promptChoices();
     })
 };
@@ -140,7 +125,7 @@ addRole = () => {
         const values = [answer.title, answer.salary];
 
         const sql = `SELECT name, id FROM department`;
-        db.promise().query(sql, (err, data)=> {
+        db.query(sql, (err, data)=> {
             if (err) throw err;
 
             const departments = data.map(({name, id}) => ({name: name, value: id}));
@@ -185,7 +170,7 @@ addEmployee = () => {
         const values = [answer.firstName, answer.lastName];
 
         const sql = `SELECT role.id, role.title FROM role`;
-        db.promise().query(sql, (err, data) => {
+        db.query(sql, (err, data) => {
             if (err) throw err;
 
             const roles = data.map(({id, title}) => ({name: title, value: id}));
@@ -202,7 +187,7 @@ addEmployee = () => {
                 values.push(newRole);
 
                 const sql = `SELECT * FROM employee`;
-                db.promise().query(sql, (err, data) => {
+                db.query(sql, (err, data) => {
                     if (err) throw err;
 
                     const managers = data.map(({id, first_name, last_name}) => ({name: first_name + " "+ last_name, value: id}));
@@ -234,7 +219,7 @@ addEmployee = () => {
 
 updateRole = () => {
     const sql = `SELECT * FROM employee`;
-    db.promise().query(sql, (err, data) => {
+    db.query(sql, (err, data) => {
         if (err) throw err;
 
         const employees = data.map(({id, first_name, last_name}) => ({name: first_name + " "+ last_name, value: id}));
@@ -252,7 +237,7 @@ updateRole = () => {
             values.push(updatedEmployee);
 
             const sql = `SELECT * FROM role`;
-            db.promise().query(sql, (err, data) => {
+            db.query(sql, (err, data) => {
                 if (err) throw err;
 
                 const roles = data.map(({id, title}) => ({name: title, value: id}));
